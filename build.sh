@@ -2,9 +2,14 @@
 
 
 DIR_DENUG="debug"
+DIR_LIST="list"
+DIR_NET="network"
+DIR_STR="string"
 
 cd src/
-make;make clean;
+make clean;make all
 
-cp ${DIR_DENUG}/*.h ../head
-cd ../
+cd ../demo
+make clean;make all
+
+cd ..

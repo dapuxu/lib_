@@ -12,10 +12,12 @@
 #include <sys/time.h>
 
 #include "lib_debug.h"
+#include "includes.h"
 
 #define Max_Msg_Info_Len 100
 
-DEBUG_INFO Dbg_Info;
+static DEBUG_INFO Dbg_Info;
+static char Interface_Type = 0;
 
 /********************************************************************************************/
 /*	函数名:Debug_Info_Free 																	*/
@@ -23,48 +25,48 @@ DEBUG_INFO Dbg_Info;
 /*	参	数:[in]info:调试接口注册信息																	*/
 /*	返回值:无																					*/
 /********************************************************************************************/
-static void Debug_Info_Free(DEBUG_INFO *info, DEBUG_TYPE_T type)
+static void Debug_Info_Free(DEBUG_INFO *info, INTERFACE_TYPE_T type)
 {
 	if (info == NULL)
 		return;
 
 	switch(type) {
-		case DEBUG_TYPE_CONSOLE:
-			info->DebugType &= (~(1 < DEBUG_TYPE_CONSOLE));
+		case INTERFACE_TYPE_CONSOLE:
+			info->InterfaceType &= (~(1 << INTERFACE_TYPE_CONSOLE));
 			break;
-		case DEBUG_TYPE_UART:
+		case INTERFACE_TYPE_UART:
 			if (info->Uart) {
 				if (info->Uart->uart_fd > 0)
 					close(info->Uart->uart_fd);
 				free(info->Uart);
 			}
 			info->Uart = NULL;
-			info->DebugType &= (~(1 < DEBUG_TYPE_UART));
+			info->InterfaceType &= (~(1 << INTERFACE_TYPE_UART));
 			break;
-		case DEBUG_TYPE_NET:
+		case INTERFACE_TYPE_NET:
 			if (info->Net) {
 				if (info->Net->net_fd > 0)
 					close(info->Net->net_fd);
 				free(info->Net);
 			}
 			info->Net = NULL;
-			info->DebugType &= (~(1 < DEBUG_TYPE_NET));
+			info->InterfaceType &= (~(1 << INTERFACE_TYPE_NET));
 			break;
-		case DEBUG_TYPE_LOG:
+		case INTERFACE_TYPE_LOG:
 			if (info->Log) {
 				free(info->Log);
 			}
 			info->Log = NULL;
-			info->DebugType &= (~(1 < DEBUG_TYPE_LOG));
+			info->InterfaceType &= (~(1 << INTERFACE_TYPE_LOG));
 			break;
-		case DEBUG_TYPE_LCD:
+		case INTERFACE_TYPE_LCD:
 			if (info->Lcd) {
 				if (info->Lcd->lcd_fd > 0)
 					close(info->Lcd->lcd_fd);
 				free(info->Lcd);
 			}
 			info->Lcd = NULL;
-			info->DebugType &= (~(1 < DEBUG_TYPE_LCD));
+			info->InterfaceType &= (~(1 << INTERFACE_TYPE_LCD));
 			break;
 		default:
 			break;
@@ -89,7 +91,7 @@ static void Debug_Msg_Uart(DEBUG_INFO *info, char *data)
 		return;
 
 	if (info->Uart == NULL) {
-		Debug_Info_Free(info,DEBUG_TYPE_UART);
+		Debug_Info_Free(info,INTERFACE_TYPE_UART);
 		return;
 	}
 
@@ -102,7 +104,7 @@ static void Debug_Msg_Uart(DEBUG_INFO *info, char *data)
 				usleep(1000);
 				continue;
 			} else if (ret <= 0) {																					/*发送失败，则关闭串口,回收相关资源*/
-				Debug_Info_Free(info,DEBUG_TYPE_UART);
+				Debug_Info_Free(info,INTERFACE_TYPE_UART);
 				return;
 			}
 			total += ret;
@@ -128,7 +130,7 @@ static void Debug_Msg_Net(DEBUG_INFO *info, char *data)
 		return;
 
 	if (info->Net == NULL) {
-		Debug_Info_Free(info,DEBUG_TYPE_NET);
+		Debug_Info_Free(info,INTERFACE_TYPE_NET);
 		return;
 	}
 
@@ -136,7 +138,7 @@ static void Debug_Msg_Net(DEBUG_INFO *info, char *data)
 		ret = info->Net->Debug_Net_Interface(data,data_len);
 
 		if (ret = FALSE) {
-			Debug_Info_Free(info,DEBUG_TYPE_NET);
+			Debug_Info_Free(info,INTERFACE_TYPE_NET);
 		}
 	}
 }
@@ -177,12 +179,12 @@ static void Debug_Msg_Log(DEBUG_INFO *info, char *data)
 		return;
 
 	if (info->Log == NULL) {
-		Debug_Info_Free(info,DEBUG_TYPE_LOG);
+		Debug_Info_Free(info,INTERFACE_TYPE_LOG);
 		return;
 	}
 
 	if (strlen(info->Log->log_name) < 2) {
-		Debug_Info_Free(info,DEBUG_TYPE_LOG);
+		Debug_Info_Free(info,INTERFACE_TYPE_LOG);
 		return;
 	}
 		
@@ -199,7 +201,7 @@ static void Debug_Msg_Log(DEBUG_INFO *info, char *data)
 		fprintf(info->Log->log_fd, "%s",data);
 		fclose(info->Log->log_fd);
 	} else {
-		Debug_Info_Free(info,DEBUG_TYPE_LOG);
+		Debug_Info_Free(info,INTERFACE_TYPE_LOG);
 	}
 }
 
@@ -219,7 +221,7 @@ static void Debug_Msg_Lcd(DEBUG_INFO *info, char *data)
 		return;
 
 	if (info->Lcd == NULL) {
-		Debug_Info_Free(info,DEBUG_TYPE_LCD);
+		Debug_Info_Free(info,INTERFACE_TYPE_LCD);
 		return;
 	}
 
@@ -227,7 +229,7 @@ static void Debug_Msg_Lcd(DEBUG_INFO *info, char *data)
 		ret = info->Lcd->Debug_LCD_Interface(data,data_len);
 
 		if (ret = FALSE) {
-			Debug_Info_Free(info,DEBUG_TYPE_LCD);
+			Debug_Info_Free(info,INTERFACE_TYPE_LCD);
 		}
 	}
 }
@@ -235,33 +237,32 @@ static void Debug_Msg_Lcd(DEBUG_INFO *info, char *data)
 /********************************************************************************************/
 /*	函数名:Debug_Msg 																			*/
 /*	描	述:调试信息输出		 																	*/
-/*	参	数:[in]debug_type:调试信息输出类型															*/
-/*		   [in]swit:调试输出开关																	*/
+/*	参	数:[in]swit:调试输出开关																	*/
 /*		   [in]data:调试输出信息																	*/
 /*	返回值:无																					*/
 /********************************************************************************************/
-void Debug_Msg(unsigned char debug_type, DEBUG_SWITCH_T swit, char *data)
+void Debug_Msg(DEBUG_SWITCH_T swit, char *data)
 {
-	if (debug_type == 0 || swit == DEBUG_SWITCH_CLOSE || data == NULL)
+	if (Interface_Type == 0 || swit == DEBUG_SWITCH_CLOSE || data == NULL)
 		return;
 
-	if (debug_type & (1 < DEBUG_TYPE_CONSOLE)) {
+	if (Interface_Type & (1 << INTERFACE_TYPE_CONSOLE)) {
 		printf("%s",data);
 	}
 
-	if (debug_type & (1 < DEBUG_TYPE_UART) && Dbg_Info.Uart) {
+	if (Interface_Type & (1 << INTERFACE_TYPE_UART) && Dbg_Info.Uart) {
 		Debug_Msg_Uart(&Dbg_Info,data);
 	}
 
-	if (debug_type & (1 < DEBUG_TYPE_NET) && Dbg_Info.Net) {
+	if (Interface_Type & (1 << INTERFACE_TYPE_NET) && Dbg_Info.Net) {
 		Debug_Msg_Net(&Dbg_Info,data);
 	}
 
-	if (debug_type & (1 < DEBUG_TYPE_LOG) && Dbg_Info.Log) {
+	if (Interface_Type & (1 << INTERFACE_TYPE_LOG) && Dbg_Info.Log) {
 		Debug_Msg_Log(&Dbg_Info,data);
 	}
 
-	if (debug_type & (1 < DEBUG_TYPE_LCD) && Dbg_Info.Lcd) {
+	if (Interface_Type & (1 << INTERFACE_TYPE_LCD) && Dbg_Info.Lcd) {
 		Debug_Msg_Lcd(&Dbg_Info,data);
 	}
 	
@@ -427,18 +428,18 @@ char Debug_Init(DEBUG_INFO *info)
 	if (info == NULL)
 		return -1;
 
-	if (info->DebugType == 0) {
+	if (info->InterfaceType == 0) {
 		return -1;
 	}
 
-	if (info->DebugType & (1 < DEBUG_TYPE_CONSOLE)) {
-		Debug_Info_Free(&Dbg_Info,DEBUG_TYPE_CONSOLE);
-		Dbg_Info.DebugType |= (1 < DEBUG_TYPE_CONSOLE);
+	if (info->InterfaceType & (1 << INTERFACE_TYPE_CONSOLE)) {
+		Debug_Info_Free(&Dbg_Info,INTERFACE_TYPE_CONSOLE);
+		Dbg_Info.InterfaceType |= (1 << INTERFACE_TYPE_CONSOLE);
 	}
 
 	ret = 0;
-	if (info->DebugType & (1 < DEBUG_TYPE_UART) && info->Uart) {
-		Debug_Info_Free(&Dbg_Info,DEBUG_TYPE_UART);
+	if (info->InterfaceType & (1 << INTERFACE_TYPE_UART) && info->Uart) {
+		Debug_Info_Free(&Dbg_Info,INTERFACE_TYPE_UART);
 		Dbg_Info.Uart = (DEBUG_UART_INFO *)malloc(sizeof(DEBUG_UART_INFO));
 		if (Dbg_Info.Uart) {
 
@@ -446,7 +447,7 @@ char Debug_Init(DEBUG_INFO *info)
 			ret = Debug_Uart_Open(Dbg_Info.Uart);
 
 			if (ret == 1) {
-				Dbg_Info.DebugType |= (1 < DEBUG_TYPE_UART);
+				Dbg_Info.InterfaceType |= (1 << INTERFACE_TYPE_UART);
 			} else {
 				free(Dbg_Info.Uart);
 				Dbg_Info.Uart = NULL;
@@ -455,8 +456,8 @@ char Debug_Init(DEBUG_INFO *info)
 	}
 
 	ret = 0;
-	if (info->DebugType & (1 < DEBUG_TYPE_NET) && info->Net) {
-		Debug_Info_Free(&Dbg_Info,DEBUG_TYPE_NET);
+	if (info->InterfaceType & (1 << INTERFACE_TYPE_NET) && info->Net) {
+		Debug_Info_Free(&Dbg_Info,INTERFACE_TYPE_NET);
 		Dbg_Info.Net = (DEBUG_NET_INFO *)malloc(sizeof(DEBUG_NET_INFO));
 		if (Dbg_Info.Net) {
 			if (info->Net->Debug_Net_Interface != NULL && info->Net->net_fd >0) {
@@ -466,7 +467,7 @@ char Debug_Init(DEBUG_INFO *info)
 			}
 
 			if (ret == 1) {
-				Dbg_Info.DebugType |= (1 < DEBUG_TYPE_UART);
+				Dbg_Info.InterfaceType |= (1 << INTERFACE_TYPE_UART);
 			} else {
 				free(Dbg_Info.Net);
 				Dbg_Info.Net = NULL;
@@ -474,19 +475,19 @@ char Debug_Init(DEBUG_INFO *info)
 		}
 	}
 
-	if (info->DebugType & (1 < DEBUG_TYPE_LOG) && info->Log) {
-		Debug_Info_Free(&Dbg_Info,DEBUG_TYPE_LOG);
+	if (info->InterfaceType & (1 << INTERFACE_TYPE_LOG) && info->Log) {
+		Debug_Info_Free(&Dbg_Info,INTERFACE_TYPE_LOG);
 		Dbg_Info.Log = (DEBUG_LOG_INFO *)malloc(sizeof(DEBUG_LOG_INFO));
 		if (Dbg_Info.Log) {
 			memcpy(Dbg_Info.Log,info->Log,sizeof(DEBUG_UART_INFO));
-			Dbg_Info.DebugType |= (1 < DEBUG_TYPE_UART);
+			Dbg_Info.InterfaceType |= (1 << INTERFACE_TYPE_UART);
 	
 		}
 	}
 
 	ret = 0;
-	if (info->DebugType & (1 < DEBUG_TYPE_LCD) && info->Lcd) {
-		Debug_Info_Free(&Dbg_Info,DEBUG_TYPE_LCD);
+	if (info->InterfaceType & (1 << INTERFACE_TYPE_LCD) && info->Lcd) {
+		Debug_Info_Free(&Dbg_Info,INTERFACE_TYPE_LCD);
 		Dbg_Info.Lcd = (DEBUG_LCD_INFO *)malloc(sizeof(DEBUG_LCD_INFO));
 		if (Dbg_Info.Lcd) {
 			if (info->Lcd->Debug_LCD_Interface != NULL && info->Lcd->lcd_fd >0) {
@@ -496,7 +497,7 @@ char Debug_Init(DEBUG_INFO *info)
 			}
 
 			if (ret == 1) {
-				Dbg_Info.DebugType |= (1 < DEBUG_TYPE_UART);
+				Dbg_Info.InterfaceType |= (1 << INTERFACE_TYPE_UART);
 			} else {
 				free(Dbg_Info.Lcd);
 				Dbg_Info.Lcd = NULL;
@@ -504,7 +505,8 @@ char Debug_Init(DEBUG_INFO *info)
 		}
 	}
 
-	return Dbg_Info.DebugType;
+	Interface_Type = Dbg_Info.InterfaceType;
+	return Dbg_Info.InterfaceType;
 }
 
 

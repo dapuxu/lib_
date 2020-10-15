@@ -5,17 +5,17 @@
 /******************************************* Enum ********************************************/
 /* debug调试输出方式 */
 typedef enum {
-	DEBUG_TYPE_CONSOLE,								/* 终端输出 */
-	DEBUG_TYPE_UART,									/* 串口输出 */
-	DEBUG_TYPE_NET,									/* TCP输出   */
-	DEBUG_TYPE_LOG,									/* 日志文件存储 */
-	DEBUG_TYPE_LCD,									/* lcd屏输出 */
-	DEBUG_MAX_DIRE_TYPE
-}DEBUG_TYPE_T;
+	INTERFACE_TYPE_CONSOLE = 0,								/* 终端输出 */
+	INTERFACE_TYPE_UART,									/* 串口输出 */
+	INTERFACE_TYPE_NET,										/* TCP输出   */
+	INTERFACE_TYPE_LOG,										/* 日志文件存储 */
+	INTERFACE_TYPE_LCD,										/* lcd屏输出 */
+	INTERFACE_TYPE_MAX
+}INTERFACE_TYPE_T;
 
 /* 调试开关 */
 typedef enum {
-	DEBUG_SWITCH_CLOSE,
+	DEBUG_SWITCH_CLOSE = 0,
 	DEBUG_SWITCH_OPEN
 }DEBUG_SWITCH_T;
 
@@ -84,7 +84,7 @@ typedef struct {
 
 /* debug调试注册信息 */
 typedef struct {
-	unsigned char 		DebugType;
+	unsigned char 		InterfaceType;
 	DEBUG_UART_INFO		*Uart;
 	DEBUG_NET_INFO		*Net;
 	DEBUG_LOG_INFO		*Log;
@@ -97,12 +97,11 @@ typedef struct {
 /********************************************************************************************/
 /*	函数名:Debug_Msg 																			*/
 /*	描	述:调试信息输出		 																	*/
-/*	参	数:[in]debug_type:调试信息输出类型															*/
-/*		   [in]swit:调试输出开关																	*/
+/*	参	数:[in]swit:调试输出开关																	*/
 /*		   [in]data:调试输出信息																	*/
 /*	返回值:无																					*/
 /********************************************************************************************/
-void Debug_Msg(unsigned char debug_type, DEBUG_SWITCH_T swit, char *data);
+void Debug_Msg(DEBUG_SWITCH_T swit, char *data);
 
 /********************************************************************************************/
 /*	函数名:Debug_Init 																			*/
