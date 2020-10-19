@@ -16,7 +16,7 @@ char *String_Select_Key(char *str, char *key)
 		return NULL;
 
 	pos = str;
-	while (pos = strchr(pos,key[0])) {
+	while (NULL != (pos = strchr(pos,key[0]))) {
 		if (!memcmp(key,pos,strlen(key))) {
 			return str+strlen(str)-strlen(pos);
 		}
@@ -41,7 +41,7 @@ unsigned short String_Select_Key_Num(char *str, char *key)
 		return num;
 
 	pos = str;
-	while (pos = strchr(pos,key[0])) {
+	while (NULL != (pos = strchr(pos,key[0]))) {
 		if (!memcmp(key,pos,strlen(key))) {
 			pos += strlen(key);
 			num++;
