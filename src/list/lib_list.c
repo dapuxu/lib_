@@ -34,13 +34,18 @@ LIST_T *List_Add(LIST_T **head, void *data, int datalen, char mask)
 		node->prev = node;
 		return node;
 	} else {
-		tail_node = (*head)->prev;
-		(*head)->prev = node;
-		node->next = (*head);
-		tail_node->next = node;
-		node->prev = tail_node;
-		if (*head == NULL)
+		if (*head != NULL) {
+			tail_node = (*head)->prev;
+			(*head)->prev = node;
+			node->next = (*head);
+			tail_node->next = node;
+			node->prev = tail_node;
+		} else {
+			node->next = node;
+			node->prev = node;
 			*head = node;
+		}
+			
 		return *head;
 	}
 }
@@ -135,7 +140,6 @@ char List_Get_Tail(LIST_T **head, void *buf, int buflen)
 void List_Del_Node(LIST_T *node)
 {
 	LIST_T *node_next = NULL, *node_prev = NULL;
-	int len = 0;
 
 	if (node == NULL)
 		return;
