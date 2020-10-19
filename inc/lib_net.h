@@ -18,9 +18,9 @@ typedef struct {
 	unsigned char flag_valid;
 	unsigned short connect_num;
 	unsigned short connect_max;
-	pthread_t thread_server;
 	void (*Net_Server_Data_Handle)(LIB_NET_CONNECT_T *conn, char *data, unsigned short datalen);
 }LIB_NET_SERVER_T;
+
 
 /*******************************************************************************************************************
 **	函数名:Net_Data_Send
@@ -40,7 +40,7 @@ unsigned short Net_Data_Send(int fd, char *data, unsigned short datalen);
 **		   [in]connect_max:最大连接数量
 **	返回值:1-成功/0-已有同端口服务器/-1-失败
 ********************************************************************************************************************/
-signed char Net_Creat_Server(LIST_T **server_list, unsigned short port, unsigned short connect_max, void (*data_handle)(LIB_NET_CONNECT_T *conn, char *data, unsigned short datalen));
+signed char Net_Creat_Server(LIB_NET_SERVER_T *server);
 
 /*******************************************************************************************************************
 **	函数名:Net_Delect_Server
@@ -50,6 +50,7 @@ signed char Net_Creat_Server(LIST_T **server_list, unsigned short port, unsigned
 **		   [in]connect_max:最大连接数量
 **	返回值:1-成功/0-已有同端口服务器/-1-失败
 ********************************************************************************************************************/
-signed char Net_Delect_Server(LIST_T **server_list, unsigned short port);
+void Net_Delect_Server(LIB_NET_SERVER_T *server);
+
 
 #endif

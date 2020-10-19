@@ -11,7 +11,6 @@
 #include <netinet/tcp.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include "includes.h"
 
 #define MAX_FD_NUM 	10
@@ -85,36 +84,58 @@ static void Net_Set_Nonblock(int fd)
 }
 
 /*******************************************************************************************************************
-**	函数名:Net_Server_Thread
-**	描	述:服务器连接线程
-**	参	数:[in]param:服务器节点参数
+**	函数名:Net_Server_Close_Connect
+**	描	述:关闭服务器连接链路
+**	参	数:[in]fd:链路描述符
 **	返回值:无
 ********************************************************************************************************************/
-static void *Net_Server_Thread(void* param)
+static void Net_Server_Close_Connect(LIB_NET_CONNECT_T *conn)
+{
+    if (NULL == conn)
+		return;
+
+	shutdown(conn->fd, SHUT_RDWR);
+	conn->flag_valid = 0;
+	conn->fd = -1;
+	memset(conn->addr, 0x0, sizeof(conn->addr));
+}
+
+/*******************************************************************************************************************
+**	函数名:Net_Creat_Server
+**	描	述:查询字符串中关键词个数
+**	参	数:[in/out]server_list:服务器链表
+**		   [in]port:监听端口
+**		   [in]connect_max:最大连接数量
+**	返回值:1-成功/0-已有同端口服务器/-1-失败
+********************************************************************************************************************/
+signed char Net_Creat_Server(LIB_NET_SERVER_T *server)
+
 {
 	struct sockaddr_in s_addr;
 	struct sockaddr_in c_addr;
 	struct epoll_event event, events[MAX_FD_NUM];
-	int flags, c_len, s_len, ret = 0, c_fd = 0;
-	LIB_NET_SERVER_T *server = (LIB_NET_SERVER_T *)param;
-	LIB_NET_CONNECT_T *node = NULL;
+	int flags, s_len, ret = 0, c_fd = 0;
+	LIST_T *node = NULL;
+	LIB_NET_CONNECT_T *conn_data = NULL;
 	LIB_NET_CONNECT_T conn;
 	char buf[1024] = {0x0};
 	int epfd = epoll_create(MAX_FD_NUM);
-	
+	unsigned int c_len = 0;
+
     if (epfd == -1) {
         printf("epoll create %s\n", strerror(errno));
-        return NULL;
+        return -1;
     }
 
 	if (server == NULL)
-		return NULL; 
+		return -1;
 
+	printf("[%s:%d] creat server of port:%d, and max connect number is %d\n", __FUNCTION__, __LINE__, server->port, server->connect_max);
 	server->fd =socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     if(server->fd<0) {
         perror("cannot create communication socket");
-        return NULL;
+        return 0;
     }
 
 	flags = fcntl(server->fd, F_GETFL, 0);
@@ -135,7 +156,7 @@ static void *Net_Server_Thread(void* param)
 	event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
 	if (epoll_ctl(epfd, EPOLL_CTL_ADD, server->fd, &event) == -1) {
 		printf("epoll ctl %s\n", strerror(errno));
-		return NULL;
+		return 0;
 	}
 
 	while(server->flag_valid) {
@@ -151,7 +172,7 @@ static void *Net_Server_Thread(void* param)
                     c_fd = accept(server->fd, (struct sockaddr *)&c_addr, &c_len);
                     if (-1 == c_fd) {
                         printf("socket accept %s\n", strerror(errno));
-                        return NULL;
+                        return 0;
                     }
 					if (server->connect_num >= server->connect_max) {							/* 超载断开连接 */
 						shutdown(c_fd, SHUT_RDWR);
@@ -162,7 +183,7 @@ static void *Net_Server_Thread(void* param)
                     event.events = EPOLLIN | EPOLLERR | EPOLLHUP;
                     if (epoll_ctl(epfd, EPOLL_CTL_ADD, c_fd, &event) == -1) {
                         printf("epoll ctl %s\n", strerror(errno));
-                        return NULL;
+                        return 0;
                     }
 
 					conn.fd = c_fd;
@@ -179,60 +200,23 @@ static void *Net_Server_Thread(void* param)
                 } else {
                     memset(buf, 0, sizeof(buf));
                     ret = recv(events[i].data.fd, buf, sizeof(buf), 0);
+					select_fd = events[i].data.fd;
+					conn_data = (LIB_NET_CONNECT_T *)List_Select_Node_Data(server->connect, Net_Server_Select_Connect, DATA_TYPE_MASK_NET_CONNECT);
+					if (conn_data == NULL)
+						continue;
 					if (ret > 0) {
-						select_fd = events[i].data.fd;
-						node = (LIB_NET_CONNECT_T *)List_Select_Node_Data(server->connect, Net_Server_Select_Connect, DATA_TYPE_MASK_NET_CONNECT);
-						server->Net_Server_Data_Handle(node, buf, ret);
+						server->Net_Server_Data_Handle(conn_data, buf, ret);
+					} else {
+						List_Select_Node(node, Net_Server_Select_Connect);
+						Net_Server_Close_Connect(conn_data);
+						List_Del_Node(node);
+						printf("Connect to cilent is close!\n");
 					}
                     continue;
                 }
             }
         }
     }
-	return NULL;
-}
-
-/*******************************************************************************************************************
-**	函数名:Net_Creat_Server
-**	描	述:查询字符串中关键词个数
-**	参	数:[in/out]server_list:服务器链表
-**		   [in]port:监听端口
-**		   [in]connect_max:最大连接数量
-**	返回值:1-成功/0-已有同端口服务器/-1-失败
-********************************************************************************************************************/
-signed char Net_Creat_Server(LIST_T **server_list, unsigned short port, unsigned short connect_max, void (*data_handle)(LIB_NET_CONNECT_T *conn, char *data, unsigned short datalen))
-{
-	LIST_T *node = NULL;
-	LIB_NET_SERVER_T server;
-
-	if (NULL != server_list || 65535 < port || NULL == data_handle)
-		return -1;
-
-	if (NULL != *server_list) {
-		do {
-			node = (*server_list)->prev;
-			if (((LIB_NET_SERVER_T *)(node->data))->port == port) {										/* 检测链表中是否有同端口的服务器 */
-				if (((LIB_NET_SERVER_T *)(node->data))->flag_valid == 0) {
-					List_Del_Node(node);
-					break;
-				} else {																				/* 有同端口的在运行服务器，不再创建 */
-					return 0;
-				}
-			}
-		} while (node != *server_list);
-	}
-
-	memset(&server, 0x0, sizeof(LIB_NET_SERVER_T));
-	server.port = port;
-	server.connect_max = connect_max;
-	server.Net_Server_Data_Handle = data_handle;
-
-	List_Add(server_list, (void *)(&server), sizeof(LIB_NET_SERVER_T), DATA_TYPE_MASK_NET_SERVER);
-	node = (*server_list)->prev;
-	if (pthread_create(&server.thread_server, NULL, Net_Server_Thread, (void *)node->data) != 0) {
-		return -1;
-    }
-
 	return 1;
 }
 
@@ -244,7 +228,7 @@ signed char Net_Creat_Server(LIST_T **server_list, unsigned short port, unsigned
 **		   [in]connect_max:最大连接数量
 **	返回值:1-成功/0-已有同端口服务器/-1-失败
 ********************************************************************************************************************/
-static void Net_Delect_Server_Handle(LIB_NET_SERVER_T *server)
+void Net_Delect_Server(LIB_NET_SERVER_T *server)
 {
 	LIST_T *conn_node = NULL;
 	LIB_NET_CONNECT_T *conn = NULL;
@@ -272,39 +256,5 @@ static void Net_Delect_Server_Handle(LIB_NET_SERVER_T *server)
 		close(server->fd);
 
 	server->flag_valid = 0;
-	if (server->thread_server) {
-		pthread_join(server->thread_server, NULL);
-	}
-}
-
-/*******************************************************************************************************************
-**	函数名:Net_Delect_Server
-**	描	述:关闭服务器，并关闭相关链接
-**	参	数:[in/out]server_list:服务器链表
-**		   [in]port:监听端口
-**		   [in]connect_max:最大连接数量
-**	返回值:1-成功/0-已有同端口服务器/-1-失败
-********************************************************************************************************************/
-signed char Net_Delect_Server(LIST_T **server_list, unsigned short port)
-{
-	LIST_T *node = *server_list, *head = *server_list;
-
-	if (NULL == head)
-		return 0;
-
-	do {
-		if (NULL != node->data && DATA_TYPE_MASK_NET_SERVER == node->data_mask) {
-			if (((LIB_NET_SERVER_T *)(node->data))->port == port) {
-				if (node == head) {
-					*server_list = node->next;
-				}
-				Net_Delect_Server_Handle(node->data);
-				List_Del_Node(node);
-				node = NULL;
-				break;
-			}
-			node = node->next;
-		}
-	} while (node != head);
 }
 
