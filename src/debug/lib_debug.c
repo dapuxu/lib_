@@ -19,6 +19,34 @@
 static DEBUG_INFO Dbg_Info;
 static char Interface_Type = 0;
 
+inline unsigned char GetCurrentHour(void)
+{
+    struct timeval atTime;
+    gettimeofday(&atTime, NULL);
+    return (unsigned char)((atTime.tv_sec/3600)%24);
+}
+
+inline unsigned char GetCurrentMin(void)
+{
+    struct timeval atTime;
+    gettimeofday(&atTime, NULL);
+    return (unsigned char)((atTime.tv_sec%3600)/60);
+}
+
+inline unsigned char GetCurrentSec(void)
+{
+    struct timeval atTime;
+    gettimeofday(&atTime, NULL);
+    return (unsigned char)(atTime.tv_sec%60);
+}
+
+inline unsigned short GetCurrentMsec(void)
+{
+    struct timeval atTime;
+    gettimeofday(&atTime, NULL);
+    return (unsigned short)(atTime.tv_usec/1000);
+}
+
 /********************************************************************************************/
 /*	函数名:Debug_Info_Free 																	*/
 /*	描	述:调试注册信息回收接口	 																	*/
@@ -137,7 +165,7 @@ static void Debug_Msg_Net(DEBUG_INFO *info, char *data)
 	if (info->Net->net_fd > 0 && info->Net->Debug_Net_Interface != NULL) {
 		ret = info->Net->Debug_Net_Interface(data,data_len);
 
-		if (ret = FALSE) {
+		if (ret == FALSE) {
 			Debug_Info_Free(info,INTERFACE_TYPE_NET);
 		}
 	}
@@ -228,7 +256,7 @@ static void Debug_Msg_Lcd(DEBUG_INFO *info, char *data)
 	if (info->Lcd->lcd_fd > 0 && info->Lcd->Debug_LCD_Interface != NULL) {
 		ret = info->Lcd->Debug_LCD_Interface(data,data_len);
 
-		if (ret = FALSE) {
+		if (ret == FALSE) {
 			Debug_Info_Free(info,INTERFACE_TYPE_LCD);
 		}
 	}
@@ -241,9 +269,9 @@ static void Debug_Msg_Lcd(DEBUG_INFO *info, char *data)
 /*		   [in]data:调试输出信息																	*/
 /*	返回值:无																					*/
 /********************************************************************************************/
-void Debug_Msg(DEBUG_SWITCH_T swit, char *data)
+void Debug_Msg(char *data)
 {
-	if (Interface_Type == 0 || swit == DEBUG_SWITCH_CLOSE || data == NULL)
+	if (Interface_Type == 0 || data == NULL)
 		return;
 
 	if (Interface_Type & (1 << INTERFACE_TYPE_CONSOLE)) {
@@ -504,7 +532,6 @@ char Debug_Init(DEBUG_INFO *info)
 			}	
 		}
 	}
-
 	Interface_Type = Dbg_Info.InterfaceType;
 	return Dbg_Info.InterfaceType;
 }

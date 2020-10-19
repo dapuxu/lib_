@@ -91,7 +91,6 @@ typedef struct {
 	DEBUG_LCD_INFO		*Lcd;
 }DEBUG_INFO;
 
-
 /******************************************* Func *******************************************/
 
 /********************************************************************************************/
@@ -101,7 +100,7 @@ typedef struct {
 /*		   [in]data:调试输出信息																	*/
 /*	返回值:无																					*/
 /********************************************************************************************/
-void Debug_Msg(DEBUG_SWITCH_T swit, char *data);
+void Debug_Msg(char *data);
 
 /********************************************************************************************/
 /*	函数名:Debug_Init 																			*/
@@ -112,5 +111,22 @@ void Debug_Msg(DEBUG_SWITCH_T swit, char *data);
 /********************************************************************************************/
 char Debug_Init(DEBUG_INFO *info);
 
+#define DEBUG_TIME 1
+#if DEBUG_TIME
 
+#ifndef dbg_str
+static char dbg_str[1024] = {0x0};
+#endif
+
+unsigned char GetCurrentHour(void);
+unsigned char GetCurrentMin(void);
+unsigned char GetCurrentSec(void);
+unsigned short GetCurrentMsec(void);
+
+#define DBG_PRINT(module, format, ...)  {if(module == 1 && dbg_str != NULL) {sprintf(dbg_str, "[%d:%d:%d:%d][%s:%d]" format,  \
+	GetCurrentHour(), GetCurrentMin(), GetCurrentSec(), GetCurrentMsec(), __FUNCTION__, __LINE__, ##__VA_ARGS__); Debug_Msg(dbg_str);}}
+#else
+#define DBG_PRINT(module, format, ...)  {if(module == 1 && dbg_str != NULL) {sprintf(dbg_str, "[%s:%d]" format, __FUNCTION__, __LINE__, ##__VA_ARGS__);\
+	Debug_Msg(dbg_str);}}
+#endif
 #endif
