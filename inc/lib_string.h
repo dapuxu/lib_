@@ -1,6 +1,12 @@
 #ifndef __LIB_STRING_H__
 #define __LIB_STRING_H__
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+
 /*******************************************************************************************************************
 **	函数名:String_Select_Key
 **	描	述:查询缓存中的字符串位置
@@ -29,5 +35,9 @@ unsigned short String_Select_Key_Num(char *str, char *key);
 **	返回值:字符串中关键词所在的位置
 ********************************************************************************************************************/
 char String_Splicing(char *buf, unsigned short buflen, char *front, char *last);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

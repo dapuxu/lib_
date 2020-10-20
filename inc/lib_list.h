@@ -1,6 +1,12 @@
 #ifndef __LIB_LIST_H__
 #define __LIB_LIST_H__
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+
 typedef struct lib_list{
 	struct lib_list *next;
 	struct lib_list *prev;
@@ -84,5 +90,9 @@ LIST_T *List_Select_Node(LIST_T *head, char (*select_node)(void *data));
 **	返回值:链表节点数据
 ********************************************************************************************************************/
 void *List_Select_Node_Data(LIST_T *head, char (*select_node)(void *data), char mask);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
