@@ -14,6 +14,7 @@ DIR_DEBUG = debug/
 DIR_LIST = list/
 DIR_NET = network/
 DIR_STR = string/
+DIR_FILE = file/
 DIR_CJSON = cjson/
 
 INCLUDE = \
@@ -22,6 +23,7 @@ INCLUDE = \
 		  -I$(DIR_LIST) \
 		  -I$(DIR_NET) \
 		  -I$(DIR_STR) \
+		  -I$(DIR_FILE) \
 		  -I$(DIR_CJSON)
 
 CFLAGS := ${INCLUDE}
@@ -30,9 +32,10 @@ SRCS =${DIR_DEBUG}*.c
 SRCS += ${DIR_LIST}*.c
 SRCS += ${DIR_NET}*.c
 SRCS += ${DIR_STR}*.c
+SRCS += ${DIR_FILE}*.c
 SRCS += ${DIR_CJSON}*.c
 
-OBJS = lib_debug.o lib_list.o lib_net.o lib_string.o lib_cjson.o
+OBJS = lib_debug.o lib_list.o lib_net.o lib_string.o lib_file.o lib_cjson.o
 
 $(OBJS):$(SRCS)
 	$(CC) $(CFLAGS) -c $^
@@ -45,6 +48,7 @@ all:$(OBJS)
 	cp ${DIR_LIST}*.h ${INCPATH}
 	cp ${DIR_NET}*.h ${INCPATH}
 	cp ${DIR_STR}*.h ${INCPATH}
+	cp ${DIR_FILE}*.h ${INCPATH}
 	cp ${DIR_CJSON}*.h ${INCPATH}
 	#rm -f *.o
 clean:

@@ -84,4 +84,18 @@ char String_Splicing(char *buf, unsigned short buflen, char *front, char *last)
 	return datalen;
 }
 
+/*******************************************************************************************************************
+**	函数名:String_Splicing
+**	描	述:字符串拼接
+**	参	数:[in]data:数据
+**	返回值:数据长度
+********************************************************************************************************************/
+char String_Length(char *data)
+{
+
+	if (NULL == data)
+		return 0;
+
+	return strlen(data);
+}
 
