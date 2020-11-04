@@ -19,6 +19,7 @@ char File_Init(FILE_BLOCK_T *block,char *file_path)
 		return 0;
 
 	memcpy(block->file_path, file_path, strlen(file_path));
+	block->file_path[strlen(file_path)] = '\0';
 	block->flag_lock = 0;
 	return 1;
 }
@@ -31,10 +32,12 @@ char File_Init(FILE_BLOCK_T *block,char *file_path)
 ********************************************************************************************************************/
 char File_Access(char *file_path)
 {
+	int ret = 0;
 	if (NULL == file_path)
 		return 0;
 
-	if (0 == access(file_path,F_OK))
+	ret = access(file_path,F_OK);
+	if (0 == ret)
 		return 1;
 
 	return 0;

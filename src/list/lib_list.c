@@ -10,7 +10,7 @@
 **		   [in]mask:数据类型掩码
 **	返回值:链表头节点
 ********************************************************************************************************************/
-LIST_T *List_Add(LIST_T **head, void *data, int datalen, char mask)
+LIST_T *List_Add(LIST_T **head, void *data, int datalen, char mask, char flag_mount)
 {
 	LIST_T *node = NULL;
 	LIST_T *tail_node = NULL;
@@ -22,11 +22,18 @@ LIST_T *List_Add(LIST_T **head, void *data, int datalen, char mask)
 	if (node == NULL)
 		return *head;
 
-	node->data = (void *)malloc(datalen);
-	if (node->data == NULL)
-		return *head;
-
-	memcpy(node->data, data, datalen);
+	node->flag_mount = 0;
+	if (1 == flag_mount) {
+		node->data = data;
+		node->flag_mount = 1;
+	} else {
+		node->data = (void *)malloc(datalen);
+		if (node->data == NULL) {
+			free(node);
+			return *head;
+		}
+		memcpy(node->data, data, datalen);
+	}
 	node->datalen = datalen;
 	node->data_mask = mask;
 	if (head == NULL) {
@@ -45,7 +52,6 @@ LIST_T *List_Add(LIST_T **head, void *data, int datalen, char mask)
 			node->prev = node;
 			*head = node;
 		}
-			
 		return *head;
 	}
 }
@@ -86,7 +92,9 @@ char List_Get_Head(LIST_T **head, void *buf, int buflen)
 	node->next = NULL;
 	node->prev = NULL;
 	node->datalen = 0;
-	free(node->data);
+	if (0 == node->flag_mount) {
+		free(node->data);
+	}
 	free(node);
 	return len;
 }
@@ -126,7 +134,9 @@ char List_Get_Tail(LIST_T **head, void *buf, int buflen)
 	node->next = NULL;
 	node->prev = NULL;
 	node->datalen = 0;
-	free(node->data);
+	if (0 == node->flag_mount) {
+		free(node->data);
+	}
 	free(node);
 	return len;
 }
@@ -152,11 +162,15 @@ void List_Del_Node(LIST_T *node)
 		node_prev->next = node_next;
 	}
 
-	if (node->data != NULL)
+	if (node->data != NULL && 0 == node->flag_mount) {
 		free(node->data);
+	}
 
-	node_prev->datalen = 0;
-	node_prev->data_mask = 0;
+	node->datalen = 0;
+	node->data_mask = 0;
+	node->flag_mount = 0;
+	node->next = NULL;
+	node->prev = NULL;
 	free(node);
 }
 

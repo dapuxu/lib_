@@ -50,7 +50,7 @@ all:$(OBJS)
 	cp ${DIR_STR}*.h ${INCPATH}
 	cp ${DIR_FILE}*.h ${INCPATH}
 	cp ${DIR_CJSON}*.h ${INCPATH}
-	#rm -f *.o
+	rm -f *.o
 clean:
 	rm -f *.o
 	rm -f ${TARGET}
